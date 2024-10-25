@@ -1,6 +1,8 @@
-﻿using APICatalogo.Context;
+﻿﻿using APICatalogo.Context;
+using APICatalogo.Filters;
 using APICatalogo.Models;
 using Microsoft.AspNetCore.Mvc;
+using APICatalogo.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace APICatalogo.Controllers;
@@ -9,30 +11,30 @@ namespace APICatalogo.Controllers;
 [ApiController]
 public class ProdutosController : ControllerBase
 {
-    private readonly AppDbContext _context;
-    public ProdutosController(AppDbContext context)
+    private readonly IProdutoRepository _repository;
+    private readonly ILogger<ProdutosController> _logger;
+
+    public ProdutosController(IProdutoRepository repository, ILogger<ProdutosController> logger)
     {
-        _context = context;
+        _repository = repository;
+        _logger = logger;
     }
 
    [HttpGet]
-    public async Task<ActionResult<IEnumerable<Produto>>> Get()
+    public ActionResult<IEnumerable<Produto>> Get()
     {
-        var produtos = await _context.Produtos.ToListAsync();
-        if (produtos is null)
-        {
-            return NotFound();
-        }
+        var produtos = _repository.GetProdutos().ToList();
         return produtos;
     }
 
     [HttpGet("{id}", Name = "ObterProduto")]
-    public async Task<ActionResult<Produto>> Get(int id)
+    public ActionResult<Produto> Get(int id)
     {
-        var produto = await _context.Produtos.FirstOrDefaultAsync(p => p.ProdutoId == id);
-        if (produto is null)
+        var produto = _repository.GetProduto(id);
+        if(produto is null)
         {
-            return NotFound("Produto não encontrado...");
+            _logger.LogWarning($"Produto com id= {id} não encontrado...");
+            return NotFound($"Produto com id= {id} não encontrado...");
         }
         return produto;
     }
@@ -41,13 +43,14 @@ public class ProdutosController : ControllerBase
     public ActionResult Post(Produto produto)
     {
         if (produto is null)
-            return BadRequest();
+        {
+            _logger.LogWarning($"Dados inválidos...");
+            return BadRequest("Dados inválidos");
+        }
 
-        _context.Produtos.Add(produto);
-        _context.SaveChanges();
+        var produtoCriado =  _repository.CreateProduto(produto);
 
-        return new CreatedAtRouteResult("ObterProduto",
-            new { id = produto.ProdutoId }, produto);
+        return new CreatedAtRouteResult("ObterProduto", new { id = produtoCriado.ProdutoId }, produtoCriado);
     }
 
     [HttpPut("{id:int}")]
@@ -55,28 +58,37 @@ public class ProdutosController : ControllerBase
     {
         if (id != produto.ProdutoId)
         {
-            return BadRequest();
+            _logger.LogWarning($"Dados inválidos...");
+            return BadRequest("Dados inválidos");
         }
 
-        _context.Entry(produto).State = EntityState.Modified;
-        _context.SaveChanges();
+        bool atualizado = _repository.UpdateProduto(produto);
 
-        return Ok(produto);
+        if(atualizado){
+            return Ok(produto);
+        }else
+        {
+            return StatusCode(500, $"Falha ao atualizar o produto de id={id}");
+        }
     }
 
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
-        var produto = _context.Produtos.FirstOrDefault(p => p.ProdutoId == id);
-        //var produto = _context.Produtos.Find(id);
+        var produto = _repository.GetProduto(id);
 
         if (produto is null)
         {
-            return NotFound("Produto não localizado...");
+            _logger.LogWarning($"Produto com id={id} não encontrado...");
+            return NotFound($"Produto com id={id} não encontrado...");
         }
-        _context.Produtos.Remove(produto);
-        _context.SaveChanges();
+        
+        bool excluido = _repository.DeleteProduto(id);
 
-        return Ok(produto);
+        if(excluido){
+            return Ok($"Produto de id={id} foi excluído");
+        }else{
+            return StatusCode(500, $"Falha ao excluir produto de id={id}");
+        }
     }
 }
