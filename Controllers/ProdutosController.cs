@@ -11,26 +11,42 @@ namespace APICatalogo.Controllers;
 [ApiController]
 public class ProdutosController : ControllerBase
 {
-    private readonly IProdutoRepository _repository;
+    private readonly IRepository<Produto> _repository;
+    private readonly IProdutoRepository _produtoRepository;
     private readonly ILogger<ProdutosController> _logger;
 
-    public ProdutosController(IProdutoRepository repository, ILogger<ProdutosController> logger)
+    public ProdutosController(IRepository<Produto> repository,
+    IProdutoRepository produtoRepository,
+    ILogger<ProdutosController> logger)
     {
+        _produtoRepository = produtoRepository;
         _repository = repository;
         _logger = logger;
+    }
+
+    [HttpGet("produtos/{id}")]
+    public ActionResult <IEnumerable<Produto>> GetProdutosPorCategoria(int id)
+    {
+        var produtos =  _produtoRepository.GetProdutosPorCategoria(id);
+        if(produtos is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(produtos);
     }
 
    [HttpGet]
     public ActionResult<IEnumerable<Produto>> Get()
     {
-        var produtos = _repository.GetProdutos().ToList();
-        return produtos;
+        var produtos = _repository.GetAll();
+        return Ok(produtos);
     }
 
     [HttpGet("{id}", Name = "ObterProduto")]
     public ActionResult<Produto> Get(int id)
     {
-        var produto = _repository.GetProduto(id);
+        var produto = _repository.Get(p => p.ProdutoId == id);
         if(produto is null)
         {
             _logger.LogWarning($"Produto com id= {id} não encontrado...");
@@ -48,7 +64,7 @@ public class ProdutosController : ControllerBase
             return BadRequest("Dados inválidos");
         }
 
-        var produtoCriado =  _repository.CreateProduto(produto);
+        var produtoCriado =  _repository.Create(produto);
 
         return new CreatedAtRouteResult("ObterProduto", new { id = produtoCriado.ProdutoId }, produtoCriado);
     }
@@ -62,20 +78,15 @@ public class ProdutosController : ControllerBase
             return BadRequest("Dados inválidos");
         }
 
-        bool atualizado = _repository.UpdateProduto(produto);
+        var produtoAtualizado = _repository.Update(produto);
 
-        if(atualizado){
-            return Ok(produto);
-        }else
-        {
-            return StatusCode(500, $"Falha ao atualizar o produto de id={id}");
-        }
+        return Ok(produtoAtualizado);
     }
 
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
-        var produto = _repository.GetProduto(id);
+        var produto = _repository.Get(p => p.ProdutoId == id);
 
         if (produto is null)
         {
@@ -83,12 +94,8 @@ public class ProdutosController : ControllerBase
             return NotFound($"Produto com id={id} não encontrado...");
         }
         
-        bool excluido = _repository.DeleteProduto(id);
+        var produtoExcluido = _repository.Delete(produto);
 
-        if(excluido){
-            return Ok($"Produto de id={id} foi excluído");
-        }else{
-            return StatusCode(500, $"Falha ao excluir produto de id={id}");
-        }
+        return Ok(produtoExcluido);
     }
 }
