@@ -2,6 +2,7 @@ using APICatalogo.Models;
 ﻿using APICatalogo.Context;
 using Microsoft.EntityFrameworkCore;
 using APICatalogo.Pagination;
+using X.PagedList;
 
 namespace APICatalogo.Repositories;
 
@@ -20,15 +21,19 @@ public class ProdutoRepository : Repository<Produto>, IProdutoRepository
   //     .Take(produtosParams.PageSize).ToList();
   // }
 
-    public async Task<PagedList<Produto>> GetProdutosAsync(ProdutosParameters produtosParams)
+    public async Task<IPagedList<Produto>> GetProdutosAsync(ProdutosParameters produtosParams)
     {
       var produtos = await GetAllAsync();
-      var produtosOrdernados =  PagedList<Produto>.ToPagedList(produtos.OrderBy(p => p.ProdutoId).AsQueryable(),
-      produtosParams.PageNumber, produtosParams._pageSize);
-      return produtosOrdernados;
+
+      var produtosOrdernados = produtos.OrderBy(p => p.ProdutoId).AsQueryable();
+
+      var resultado = await produtosOrdernados.ToPagedListAsync(produtosParams.PageNumber, produtosParams._pageSize);
+      // var produtosOrdernados =  PagedList<Produto>.ToPagedList(produtos.OrderBy(p => p.ProdutoId).AsQueryable(),
+      // produtosParams.PageNumber, produtosParams._pageSize);
+      return resultado;
     }
 
-    public async Task<PagedList<Produto>> GetProdutosFiltroPrecoAsync(ProdutosFiltroPreco produtosFiltroParams)
+    public async Task<IPagedList<Produto>> GetProdutosFiltroPrecoAsync(ProdutosFiltroPreco produtosFiltroParams)
     {
       var produtos =  await GetAllAsync();
 
@@ -48,8 +53,8 @@ public class ProdutoRepository : Repository<Produto>, IProdutoRepository
         }
       }
 
-      var produtosFiltrados = PagedList<Produto>.ToPagedList(produtos.AsQueryable(), produtosFiltroParams.PageNumber,
-                                                                                              produtosFiltroParams.PageSize);
+      var produtosFiltrados = await produtos.ToPagedListAsync(produtosFiltroParams.PageNumber,
+                                                          produtosFiltroParams.PageSize);
         return produtosFiltrados;
     }
 
