@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.JsonPatch;
 using APICatalogo.Pagination;
 using Newtonsoft.Json;
 using X.PagedList;
+using Microsoft.AspNetCore.Authorization;
 
 namespace APICatalogo.Controllers;
 
@@ -90,7 +91,8 @@ public class ProdutosController : ControllerBase
         return Ok(produtosDto);
     }
 
-   [HttpGet]
+    [HttpGet]
+    [Authorize(Policy = "UserOnly")]
     public async Task<ActionResult<IEnumerable<ProdutoDTO>>> Get()
     {
         var produtos = await _uof.ProdutoRepository.GetAllAsync();
