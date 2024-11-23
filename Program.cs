@@ -75,6 +75,17 @@ builder.Services.AddControllers(options => {
   options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
 }).AddNewtonsoftJson();
 
+var origensComAcessoPermitido = "_origensComAcessoPermitido";
+
+builder.Services.AddCors(options => {
+  options.AddPolicy("origensComAcessoPermitido",
+  policy => {
+    policy.WithOrigins("http://localhost:5002")
+    .WithMethods("GET", "POST")
+    .AllowAnyHeader();
+  });
+});
+
 builder.Services.AddScoped<ICategoriaRepository, CategoriaRepository>();
 builder.Services.AddScoped<IProdutoRepository, ProdutoRepository>();
 builder.Services.AddScoped(typeof(IRepository<>),typeof(Repository<>));
@@ -131,6 +142,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseRouting();
+app.UseCors();
 
 app.UseAuthorization();
 
